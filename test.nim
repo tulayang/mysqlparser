@@ -1,4 +1,4 @@
-#    AsyncMysql - An efficient packet parser for MySQL Client/Server Protocol
+#    MysqlParser - An efficient packet parser for MySQL Client/Server Protocol
 #        (c) Copyright 2017 Wang Tong
 #
 #    See the file "LICENSE", included in this distribution, for
