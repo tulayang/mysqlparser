@@ -679,7 +679,7 @@ string[NUL]    auth-plugin name
       fieldBufLen: int
       fieldMeetNull: bool
       hasRows*: bool
-    hasMoreResults*: bool
+    hasMoreResults: bool
 
   RowList* = object
     value*: seq[string]
@@ -1414,6 +1414,9 @@ proc parseFields*(p: var PacketParser, packet: var ResultPacket, capabilities: i
       return true
     else:
       raise newException(ValueError, "unexpected state " & $p.state) 
+
+proc hasMoreResults*(packet: ResultPacket): bool =
+  result = packet.hasMoreResults
 
 proc allocPasingField*(packet: var ResultPacket, buf: pointer, size: int) =
   packet.fieldBuf = buf
