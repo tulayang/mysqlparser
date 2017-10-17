@@ -668,13 +668,17 @@ string[NUL]    auth-plugin name
       errState: ErrorState
     of rpkResultSet:
       extra*: string
+      fieldsCount*: int        
       fieldsPos: int
       fields*: seq[FieldPacket]
       fieldsEof: EofPacket
       rowsEof: EofPacket
       rsetState: ResultSetState
+      fieldLen: int
+      fieldBuf: pointer
+      fieldBufLen: int
+      fieldMeetNull: bool
       hasRows*: bool
-      meetNull: bool
     hasMoreResults*: bool
 
   RowList* = object
@@ -744,7 +748,7 @@ proc initResultPacket(kind: ResultPacketKind): ResultPacket =
     result.rowsEof = initEofPacket()
     result.rsetState = rsetExtra
     result.hasRows = false
-    result.meetNull = false
+    result.fieldMeetNull = false
   result.hasMoreResults = false
 
 proc initRowList*(): RowList =
@@ -1127,6 +1131,7 @@ proc parseResultHeader*(p: var PacketParser, packet: var ResultPacket): bool =
         p.wantEncodedState = lenFlagVal
       else:
         packet = initResultPacket(rpkResultSet)
+        packet.fieldsCount = header
         p.state = packResultSetFields
         p.want = p.remainingPayloadLen
     of packResultOk, packResultError, packResultSetFields:
@@ -1410,8 +1415,15 @@ proc parseFields*(p: var PacketParser, packet: var ResultPacket, capabilities: i
     else:
       raise newException(ValueError, "unexpected state " & $p.state) 
 
-proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int, 
-                buf: pointer, size: int): tuple[offset: int, state: RowsState] =
+proc allocPasingField*(packet: var ResultPacket, buf: pointer, size: int) =
+  packet.fieldBuf = buf
+  packet.fieldBufLen = size
+
+proc lenPasingField*(packet: ResultPacket): int =
+  result = packet.fieldLen
+
+proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int): 
+               tuple[offset: int, state: RowsState] =
   template checkIfOk(state: ProgressState): untyped =
     case state
     of prgOk:
@@ -1442,25 +1454,28 @@ proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int
             p.want = 1
           elif header == 0xFB:
             packet.rsetState = rsetRow
-            packet.meetNull = true
+            packet.fieldMeetNull = true
+            packet.fieldLen = 1
             return (0, rowsFieldBegin)
           else:
             packet.rsetState = rsetRow
             p.want = header
             assert p.want > 0
+            packet.fieldLen = header
             return (0, rowsFieldBegin)
         of rsetRow:
-          if packet.meetNull:
-            assert size > 0
-            packet.meetNull = false
-            cast[ptr char](buf)[] = '\0' # NULL ==> '\0' 
+          assert packet.fieldBufLen > 0
+          packet.fieldLen = 0
+          if packet.fieldMeetNull:
+            packet.fieldMeetNull = false
+            cast[ptr char](packet.fieldBuf)[] = '\0' # NULL ==> '\0' 
             packet.rsetState = rsetRowHeader
             p.want = 1
             p.wantEncodedState = lenFlagVal 
             return (1, rowsFieldEnd)
           else:  
             let w = p.want
-            let (prgState, full) = parseFixed(p, buf, size)
+            let (prgState, full) = parseFixed(p, packet.fieldBuf, packet.fieldBufLen)
             let offset = w - p.want
             if full:
               return (offset, rowsFieldFull)
@@ -1512,7 +1527,7 @@ proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int
             p.want = 1
           elif header == 0xFB:
             packet.rsetState = rsetRow
-            packet.meetNull = true
+            packet.fieldMeetNull = true
             inc(rows.counter)
             add(rows.value, newStringOfCap(1))
           else:
@@ -1521,8 +1536,8 @@ proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int
             inc(rows.counter)
             add(rows.value, newStringOfCap(header))
         of rsetRow:
-          if packet.meetNull:
-            packet.meetNull = false
+          if packet.fieldMeetNull:
+            packet.fieldMeetNull = false
             rows.value[rows.counter] = nil # NULL ==> nil
             packet.rsetState = rsetRowHeader
             p.want = 1

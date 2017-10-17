@@ -297,8 +297,9 @@ suite "Command Queury":
         var offset = 0
         var rowState = rowsFieldBegin
         if parser.buffered:
+          allocPasingField(packet, fieldBuf.cstring, 1024)
           while true:
-            (offset, rowState) = parseRows(parser, packet, handshakePacket.capabilities, fieldBuf.cstring, 1024)
+            (offset, rowState) = parseRows(parser, packet, handshakePacket.capabilities)
             case rowState
             of rowsFieldBegin:
               inc(rowsPos)
@@ -321,8 +322,9 @@ suite "Command Queury":
               let buf = await recv(socket, 3)
               echoHex "  ResultSet Packet: ", buf
               mount(parser, buf.cstring, buf.len)
+              allocPasingField(packet, fieldBuf.cstring, 1024)
               while true:
-                (offset, rowState) = parseRows(parser, packet, handshakePacket.capabilities, fieldBuf.cstring, 1024)
+                (offset, rowState) = parseRows(parser, packet, handshakePacket.capabilities)
                 case rowState 
                 of rowsFieldBegin:
                   inc(rowsPos)
