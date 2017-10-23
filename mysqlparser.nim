@@ -593,8 +593,7 @@ string[NUL]    auth-plugin name
     okLastInsertId, 
     okServerStatus, 
     okWarningCount, 
-    okStatusInfo,   
-    okSessionState
+    okMessage
 
   ErrorState = enum
     errErrorCode, 
@@ -658,7 +657,6 @@ string[NUL]    auth-plugin name
       serverStatus*: int
       warningCount*: int
       message*: string
-      sessionState*: string
       okState: OkState
     of rpkError:
       errorCode*: int  
@@ -732,7 +730,6 @@ proc initResultPacket(kind: ResultPacketKind): ResultPacket =
     result.serverStatus = 0
     result.warningCount = 0
     result.message = ""
-    result.sessionState = ""
     result.okState = okAffectedRows
   of rpkError:
     result.errorCode = 0
@@ -1141,13 +1138,15 @@ proc parseResultHeader*(p: var PacketParser, packet: var ResultPacket): bool =
 
 proc parseOkProgress(p: var PacketParser, packet: var ResultPacket, capabilities: int): ProgressState =
   template checkHowStatusInfo: untyped =
-    if (capabilities and CLIENT_SESSION_TRACK) > 0 and p.remainingPayloadLen > 0:
-      packet.okState = okStatusInfo
-      p.want = 1
-      p.wantEncodedState = lenFlagVal
-    else:
-      packet.okState = okStatusInfo
-      p.want = p.remainingPayloadLen
+    # if (capabilities and CLIENT_SESSION_TRACK) > 0 and p.remainingPayloadLen > 0:
+    #   packet.okState = okStatusInfo
+    #   p.want = 1
+    #   p.wantEncodedState = lenFlagVal
+    # else:
+    #   packet.okState = okStatusInfo
+    #   p.want = p.remainingPayloadLen
+    packet.okState = okMessage
+    p.want = p.remainingPayloadLen
   while true:
     case packet.okState
     of okAffectedRows:
@@ -1174,20 +1173,24 @@ proc parseOkProgress(p: var PacketParser, packet: var ResultPacket, capabilities
     of okWarningCount:
       checkIfOk parseFixed(p, packet.warningCount)
       checkHowStatusInfo
-    of okStatusInfo:
-      if (capabilities and CLIENT_SESSION_TRACK) > 0 and p.remainingPayloadLen > 0:
-        checkIfOk parseLenEncoded(p, packet.message)
-        packet.okState = okSessionState
-        p.want = 1
-        p.wantEncodedState = lenFlagVal
-      else:
-        checkIfOk parseFixed(p, packet.message)
-        packet.sequenceId = p.sequenceId
-        return prgOk
-    of okSessionState:
-      checkIfOk parseLenEncoded(p, packet.sessionState)
+    of okMessage:
+      checkIfOk parseFixed(p, packet.message)
       packet.sequenceId = p.sequenceId
       return prgOk
+    # of okStatusInfo:
+    #   if (capabilities and CLIENT_SESSION_TRACK) > 0 and p.remainingPayloadLen > 0:
+    #     checkIfOk parseLenEncoded(p, packet.message)
+    #     packet.okState = okSessionState
+    #     p.want = 1
+    #     p.wantEncodedState = lenFlagVal
+    #   else:
+    #     checkIfOk parseFixed(p, packet.message)
+    #     packet.sequenceId = p.sequenceId
+    #     return prgOk
+    # of okSessionState:
+    #   checkIfOk parseLenEncoded(p, packet.sessionState)
+    #   packet.sequenceId = p.sequenceId
+    #   return prgOk
 
 proc parseOk*(p: var PacketParser, packet: var ResultPacket, capabilities: int): bool =
   while true:
