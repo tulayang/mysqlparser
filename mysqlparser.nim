@@ -638,6 +638,7 @@ string[NUL]    auth-plugin name
     rsetField, 
     rsetFieldEof, 
     rsetRowHeader, 
+    rsetRowHeaderLen,
     rsetRow, 
     rsetRowEof
 
@@ -1537,10 +1538,33 @@ proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int
             inc(rows.counter)
             add(rows.value, newStringOfCap(1))
           else:
-            packet.rsetState = rsetRow
-            p.want = header
-            inc(rows.counter)
-            add(rows.value, newStringOfCap(header))
+            # packet.rsetState = rsetRow
+            # p.want = header
+            # inc(rows.counter)
+            # add(rows.value, newStringOfCap(header))
+            if header < 251:
+              p.want = header
+              packet.rsetState = rsetRow
+              inc(rows.counter)
+              add(rows.value, newStringOfCap(header))
+            elif header == 0xFC:
+              p.want = 2
+              packet.rsetState = rsetRowHeaderLen
+            elif header == 0xFD:
+              p.want = 3
+              packet.rsetState = rsetRowHeaderLen
+            elif header == 0xFE:
+              p.want = 8
+              packet.rsetState = rsetRowHeaderLen
+            else:
+              raise newException(ValueError, "bad encoded flag " & toProtocolHex(header, 1))  
+        of rsetRowHeaderLen: 
+          var header: int
+          checkIfOk parseFixed(p, header)
+          p.want = header
+          packet.rsetState = rsetRow
+          inc(rows.counter)
+          add(rows.value, newStringOfCap(header))
         of rsetRow:
           if packet.fieldMeetNull:
             packet.fieldMeetNull = false
