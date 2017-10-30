@@ -1679,7 +1679,7 @@ proc hash323(s: string): tuple[a: uint32, b: uint32] =
     of '\x09', '\x20':
       continue
     else:
-      tmp = 0xFF and uint32(ord(c))
+      tmp = uint32(0xFF and ord(c))
       nr = nr xor ((((nr and 63) + add) * tmp) + (nr shl 8))
       nr2 = nr2 + ((nr2 shl 8) xor nr)
       add = add + tmp
