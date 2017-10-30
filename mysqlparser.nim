@@ -1465,11 +1465,36 @@ proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int
             packet.fieldLen = 1
             return (0, rowsFieldBegin)
           else:
-            packet.rsetState = rsetRow
-            p.want = header
-            assert p.want > 0
-            packet.fieldLen = header
-            return (0, rowsFieldBegin)
+            # packet.rsetState = rsetRow
+            # p.want = header
+            # assert p.want > 0
+            # packet.fieldLen = header
+            # return (0, rowsFieldBegin)
+            if header < 251:
+              p.want = header
+              assert p.want > 0
+              packet.rsetState = rsetRow
+              packet.fieldLen = header
+              return (0, rowsFieldBegin)
+            elif header == 0xFC:
+              p.want = 2
+              packet.rsetState = rsetRowHeaderLen
+            elif header == 0xFD:
+              p.want = 3
+              packet.rsetState = rsetRowHeaderLen
+            elif header == 0xFE:
+              p.want = 8
+              packet.rsetState = rsetRowHeaderLen
+            else:
+              raise newException(ValueError, "bad encoded flag " & toProtocolHex(header, 1))  
+        of rsetRowHeaderLen: 
+          var header: int
+          checkIfOk parseFixed(p, header)
+          p.want = header
+          assert p.want > 0
+          packet.rsetState = rsetRow
+          packet.fieldLen = header
+          return (0, rowsFieldBegin)
         of rsetRow:
           assert packet.fieldBufLen > 0
           packet.fieldLen = 0
