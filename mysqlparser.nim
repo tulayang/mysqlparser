@@ -763,7 +763,7 @@ template initPacketParserImpl() =
   result.payloadLen = 0
   result.sequenceId = 0
   result.remainingPayloadLen = 0
-  result.storedWord = nil
+  result.storedWord = ""
   result.storedWant = 0
   result.storedState = packInit
   result.state = packInit
@@ -968,7 +968,7 @@ proc parseLenEncoded(p: var PacketParser, field: var string): ProgressState =
         p.want = value
         continue
       elif value == 0xFB: # 0xFB means that this string field is ``NULL``
-        field = nil
+        field = ""
         return prgOk
       elif value == 0xFC:
         p.want = 2
@@ -1593,7 +1593,7 @@ proc parseRows*(p: var PacketParser, packet: var ResultPacket, capabilities: int
         of rsetRow:
           if packet.fieldMeetNull:
             packet.fieldMeetNull = false
-            rows.value[rows.counter] = nil # NULL ==> nil
+            rows.value[rows.counter] = "" # NULL ==> nil
             packet.rsetState = rsetRowHeader
             p.want = 1
             p.wantEncodedState = lenFlagVal 
@@ -1687,8 +1687,8 @@ proc hash323(s: string): tuple[a: uint32, b: uint32] =
   result.b = (nr2 and 0x7FFFFFFF)
 
 proc scramble323(seed: string, password: string): string =
-  assert password != nil
-  if password == "":
+  assert password.len == 0
+  if password.len == 0:
     return ""
   var pw = hash323(seed)
   var msg = hash323(password)
