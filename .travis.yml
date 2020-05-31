@@ -1,18 +1,24 @@
 language: c
-os:
-  - linux
-  - osx
-
-compiler:
-  - gcc
 
 services:
   mysql
 
-allow_failures:
-  # Ignore failures when building against the devel Nim branch
-  # Also ignore OSX, due to very long build queue
-  - os: osx
+matrix:
+  include:
+    # Build and test against the master (stable) and devel branches of Nim
+    - os: linux
+      compiler: gcc
+
+    # On OSX we only test against clang (gcc is mapped to clang by default)
+    - os: osx
+      env: CHANNEL=stable
+      compiler: clang
+
+  allow_failures:
+    # Ignore failures when building against the devel Nim branch
+    # Also ignore OSX, due to very long build queue
+    - os: osx
+  fast_finish: true
 
 before_install:
   - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then 
