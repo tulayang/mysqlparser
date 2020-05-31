@@ -4,7 +4,7 @@
 #    See the file "LICENSE", included in this distribution, for
 #    details about the copyright.
 
-import strutils, securehash, math
+import strutils, std/sha1, math
 
 type 
   # [WL#8754: Deprecate COM_XXX commands which are redundant.]
