@@ -9,6 +9,11 @@ compiler:
 services:
   mysql
 
+allow_failures:
+  # Ignore failures when building against the devel Nim branch
+  # Also ignore OSX, due to very long build queue
+  - os: osx
+
 before_install:
   - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then 
       HOMEBREW_NO_AUTO_UPDATE=1 brew install mysql;
