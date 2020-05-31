@@ -1659,9 +1659,10 @@ proc `xor`(a: string, b: string): string =
 proc sha1(seed: string): string =
   const len = 20
   result = newString(len)
-  let s = $secureHash(seed) # TODO: optimize
+  let s = secureHash(seed)
+  let da = Sha1Digest(s)
   for i in 0..<len:
-    result[i] = chr(parseHex(s[i*2]) shl 4 + parseHex(s[i*2+1]))
+    result[i] = chr(da[i*2] shl 4 + da[i*2+1])
 
 proc token(scrambleBuff: string, password: string): string =
   let stage1 = sha1(password)
